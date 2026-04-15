@@ -23,13 +23,22 @@ const UPLOADS_DIR =
 
 try { fs.mkdirSync(UPLOADS_DIR, { recursive: true }); } catch {};
 
-// ── Database ────────────────────────────────────────────────────────────────
-if (!process.env.TURSO_DATABASE_URL) {
-  console.error("TURSO_DATABASE_URL is required. Set it to your libsql:// URL.");
+// ── Database (lazy init for Vercel serverless) ─────────────────────────────
+let _db = null;
+function getDb() {
+  if (!_db) {
+    if (!process.env.TURSO_DATABASE_URL) {
+      console.error("TURSO_DATABASE_URL is required.");
+    }
+    _db = createClient({
+      url: process.env.TURSO_DATABASE_URL,
+      authToken: process.env.TURSO_AUTH_TOKEN,
+    });
+  }
+  return _db;
 }
-const db = createClient({
-  url: process.env.TURSO_DATABASE_URL || "libsql://invalid.invalid",
-  authToken: process.env.TURSO_AUTH_TOKEN,
+const db = new Proxy({}, {
+  get(_, prop) { return getDb()[prop]; }
 });
 
 // ── Schema ──────────────────────────────────────────────────────────────────
