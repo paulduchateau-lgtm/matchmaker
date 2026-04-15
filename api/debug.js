@@ -1,41 +1,39 @@
 export default async function handler(req, res) {
   try {
     const tests = [];
+    const rawUrl = process.env.TURSO_DATABASE_URL;
+    const rawToken = process.env.TURSO_AUTH_TOKEN;
 
-    // Test 1: @libsql/client with https
+    tests.push("raw url length: " + rawUrl?.length);
+    tests.push("raw url: [" + rawUrl + "]");
+    tests.push("raw url charCodes (first 20): " + [...(rawUrl || "")].slice(0, 20).map(c => c.charCodeAt(0)).join(","));
+    tests.push("raw token length: " + rawToken?.length);
+
+    // Test with hardcoded URL to isolate the issue
     try {
       const { createClient } = await import("@libsql/client");
-      let url = process.env.TURSO_DATABASE_URL?.replace("libsql://", "https://");
-      tests.push("test1 url: " + url?.slice(0, 50));
-      const db = createClient({ url, authToken: process.env.TURSO_AUTH_TOKEN });
+      const db = createClient({
+        url: "libsql://matchmaker-paulduchateau.aws-eu-west-1.turso.io",
+        authToken: rawToken,
+      });
       const r = await db.execute("SELECT 1 as v");
-      tests.push("test1 (@libsql/client + https): ok " + JSON.stringify(r.rows[0]));
+      tests.push("hardcoded libsql:// test: ok " + JSON.stringify(r.rows[0]));
     } catch(e) {
-      tests.push("test1 (@libsql/client + https): " + e.message.slice(0, 300));
+      tests.push("hardcoded libsql:// test: " + e.message.slice(0, 300));
     }
 
-    // Test 2: @libsql/client/web
-    try {
-      const { createClient } = await import("@libsql/client/web");
-      let url = process.env.TURSO_DATABASE_URL?.replace("libsql://", "https://");
-      const db = createClient({ url, authToken: process.env.TURSO_AUTH_TOKEN });
-      const r = await db.execute("SELECT 1 as v");
-      tests.push("test2 (@libsql/client/web + https): ok " + JSON.stringify(r.rows[0]));
-    } catch(e) {
-      tests.push("test2 (@libsql/client/web + https): " + e.message.slice(0, 300));
-    }
-
-    // Test 3: @libsql/client with original libsql:// url
+    // Test with hardcoded https URL
     try {
       const { createClient } = await import("@libsql/client");
-      const db = createClient({ url: process.env.TURSO_DATABASE_URL, authToken: process.env.TURSO_AUTH_TOKEN });
+      const db = createClient({
+        url: "https://matchmaker-paulduchateau.aws-eu-west-1.turso.io",
+        authToken: rawToken,
+      });
       const r = await db.execute("SELECT 1 as v");
-      tests.push("test3 (@libsql/client + libsql://): ok " + JSON.stringify(r.rows[0]));
+      tests.push("hardcoded https:// test: ok " + JSON.stringify(r.rows[0]));
     } catch(e) {
-      tests.push("test3 (@libsql/client + libsql://): " + e.message.slice(0, 300));
+      tests.push("hardcoded https:// test: " + e.message.slice(0, 300));
     }
-
-    tests.push("VERCEL: " + process.env.VERCEL);
 
     res.json({ node: process.version, tests });
   } catch (err) {
