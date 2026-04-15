@@ -24,22 +24,16 @@ const UPLOADS_DIR =
 try { fs.mkdirSync(UPLOADS_DIR, { recursive: true }); } catch {};
 
 // ── Database (lazy init for Vercel serverless) ─────────────────────────────
-let _db = null;
+let db;
 function getDb() {
-  if (!_db) {
-    if (!process.env.TURSO_DATABASE_URL) {
-      console.error("TURSO_DATABASE_URL is required.");
-    }
-    _db = createClient({
+  if (!db) {
+    db = createClient({
       url: process.env.TURSO_DATABASE_URL,
       authToken: process.env.TURSO_AUTH_TOKEN,
     });
   }
-  return _db;
+  return db;
 }
-const db = new Proxy({}, {
-  get(_, prop) { return getDb()[prop]; }
-});
 
 // ── Schema ──────────────────────────────────────────────────────────────────
 let initialized = false;
@@ -47,7 +41,7 @@ let initialized = false;
 async function initDB() {
   if (initialized) return;
 
-  await db.executeMultiple(`
+  await getDb().executeMultiple(`
     CREATE TABLE IF NOT EXISTS workspaces (
       id TEXT PRIMARY KEY,
       slug TEXT UNIQUE NOT NULL,
@@ -115,7 +109,7 @@ async function initDB() {
     );
   `);
 
-  await db.executeMultiple(`
+  await getDb().executeMultiple(`
     CREATE TABLE IF NOT EXISTS chat_messages (
       id TEXT PRIMARY KEY,
       workspace_id TEXT NOT NULL,
@@ -131,11 +125,15 @@ async function initDB() {
   console.log("✓ Database schema initialized");
 }
 
-// ── Claude client ───────────────────────────────────────────────────────────
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+// ── Claude client (lazy for Vercel) ─────────────────────────────────────────
+let _anthropic;
+function getAnthropic() {
+  if (!_anthropic) _anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  return _anthropic;
+}
 
 async function askClaude(systemPrompt, userPrompt, { maxTokens = 2000 } = {}) {
-  const msg = await anthropic.messages.create({
+  const msg = await getAnthropic().messages.create({
     model: "claude-haiku-4-5-20251001",
     max_tokens: maxTokens,
     system: systemPrompt,
@@ -232,12 +230,12 @@ async function extractDocxSections(filePath) {
 // ═══════════════════════════════════════════════════════════════════════════
 
 app.get("/api/workspaces", async (_req, res) => {
-  const result = await db.execute("SELECT * FROM workspaces ORDER BY created_at DESC");
+  const result = await getDb().execute("SELECT * FROM workspaces ORDER BY created_at DESC");
   res.json(result.rows);
 });
 
 app.get("/api/workspaces/:slug", async (req, res) => {
-  const result = await db.execute({ sql: "SELECT * FROM workspaces WHERE slug = ?", args: [req.params.slug] });
+  const result = await getDb().execute({ sql: "SELECT * FROM workspaces WHERE slug = ?", args: [req.params.slug] });
   if (!result.rows.length) return res.status(404).json({ error: "Workspace not found" });
   res.json(result.rows[0]);
 });
@@ -247,28 +245,28 @@ app.post("/api/workspaces", async (req, res) => {
   if (!name) return res.status(400).json({ error: "name is required" });
   const id = uuid();
   const slug = slugify(name) + "-" + id.slice(0, 6);
-  await db.execute({
+  await getDb().execute({
     sql: "INSERT INTO workspaces (id, slug, name, description, industry, client_name) VALUES (?, ?, ?, ?, ?, ?)",
     args: [id, slug, name, description || "", industry || "", client_name || ""],
   });
-  const result = await db.execute({ sql: "SELECT * FROM workspaces WHERE id = ?", args: [id] });
+  const result = await getDb().execute({ sql: "SELECT * FROM workspaces WHERE id = ?", args: [id] });
   res.status(201).json(result.rows[0]);
 });
 
 app.put("/api/workspaces/:id", async (req, res) => {
   const { name, description, industry, client_name } = req.body;
-  await db.execute({
+  await getDb().execute({
     sql: `UPDATE workspaces SET name = COALESCE(?, name), description = COALESCE(?, description),
           industry = COALESCE(?, industry), client_name = COALESCE(?, client_name),
           updated_at = datetime('now') WHERE id = ?`,
     args: [name, description, industry, client_name, req.params.id],
   });
-  const result = await db.execute({ sql: "SELECT * FROM workspaces WHERE id = ?", args: [req.params.id] });
+  const result = await getDb().execute({ sql: "SELECT * FROM workspaces WHERE id = ?", args: [req.params.id] });
   res.json(result.rows[0]);
 });
 
 app.delete("/api/workspaces/:id", async (req, res) => {
-  await db.execute({ sql: "DELETE FROM workspaces WHERE id = ?", args: [req.params.id] });
+  await getDb().execute({ sql: "DELETE FROM workspaces WHERE id = ?", args: [req.params.id] });
   res.json({ ok: true });
 });
 
@@ -277,7 +275,7 @@ app.delete("/api/workspaces/:id", async (req, res) => {
 // ═══════════════════════════════════════════════════════════════════════════
 
 app.get("/api/workspaces/:wid/resources", async (req, res) => {
-  const result = await db.execute({
+  const result = await getDb().execute({
     sql: "SELECT * FROM resources WHERE workspace_id = ? ORDER BY created_at DESC",
     args: [req.params.wid],
   });
@@ -288,7 +286,7 @@ app.post("/api/workspaces/:wid/resources", async (req, res) => {
   const { type, name, description, capabilities, experiences, cost_value, cost_unit, variables, metadata } = req.body;
   if (!name) return res.status(400).json({ error: "name is required" });
   const id = uuid();
-  await db.execute({
+  await getDb().execute({
     sql: `INSERT INTO resources (id, workspace_id, type, name, description, capabilities, experiences, cost_value, cost_unit, variables, metadata)
           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     args: [
@@ -297,13 +295,13 @@ app.post("/api/workspaces/:wid/resources", async (req, res) => {
       cost_value ?? null, cost_unit || "", JSON.stringify(variables || {}), JSON.stringify(metadata || {}),
     ],
   });
-  const result = await db.execute({ sql: "SELECT * FROM resources WHERE id = ?", args: [id] });
+  const result = await getDb().execute({ sql: "SELECT * FROM resources WHERE id = ?", args: [id] });
   res.status(201).json(result.rows[0]);
 });
 
 app.put("/api/workspaces/:wid/resources/:id", async (req, res) => {
   const { type, name, description, capabilities, experiences, cost_value, cost_unit, variables, metadata } = req.body;
-  await db.execute({
+  await getDb().execute({
     sql: `UPDATE resources SET type = COALESCE(?, type), name = COALESCE(?, name), description = COALESCE(?, description),
           capabilities = COALESCE(?, capabilities), experiences = COALESCE(?, experiences),
           cost_value = COALESCE(?, cost_value), cost_unit = COALESCE(?, cost_unit),
@@ -318,12 +316,12 @@ app.put("/api/workspaces/:wid/resources/:id", async (req, res) => {
       req.params.id, req.params.wid,
     ],
   });
-  const result = await db.execute({ sql: "SELECT * FROM resources WHERE id = ?", args: [req.params.id] });
+  const result = await getDb().execute({ sql: "SELECT * FROM resources WHERE id = ?", args: [req.params.id] });
   res.json(result.rows[0]);
 });
 
 app.delete("/api/workspaces/:wid/resources/:id", async (req, res) => {
-  await db.execute({ sql: "DELETE FROM resources WHERE id = ? AND workspace_id = ?", args: [req.params.id, req.params.wid] });
+  await getDb().execute({ sql: "DELETE FROM resources WHERE id = ? AND workspace_id = ?", args: [req.params.id, req.params.wid] });
   res.json({ ok: true });
 });
 
@@ -332,7 +330,7 @@ app.delete("/api/workspaces/:wid/resources/:id", async (req, res) => {
 // ═══════════════════════════════════════════════════════════════════════════
 
 app.get("/api/workspaces/:wid/needs", async (req, res) => {
-  const result = await db.execute({
+  const result = await getDb().execute({
     sql: "SELECT * FROM needs WHERE workspace_id = ? ORDER BY created_at DESC",
     args: [req.params.wid],
   });
@@ -343,7 +341,7 @@ app.post("/api/workspaces/:wid/needs", async (req, res) => {
   const { title, description, requirements, context, weights, source_document_id } = req.body;
   if (!title) return res.status(400).json({ error: "title is required" });
   const id = uuid();
-  await db.execute({
+  await getDb().execute({
     sql: `INSERT INTO needs (id, workspace_id, title, description, requirements, context, weights, source_document_id)
           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
     args: [
@@ -352,13 +350,13 @@ app.post("/api/workspaces/:wid/needs", async (req, res) => {
       JSON.stringify(weights || {}), source_document_id || null,
     ],
   });
-  const result = await db.execute({ sql: "SELECT * FROM needs WHERE id = ?", args: [id] });
+  const result = await getDb().execute({ sql: "SELECT * FROM needs WHERE id = ?", args: [id] });
   res.status(201).json(result.rows[0]);
 });
 
 app.put("/api/workspaces/:wid/needs/:id", async (req, res) => {
   const { title, description, requirements, context, weights } = req.body;
-  await db.execute({
+  await getDb().execute({
     sql: `UPDATE needs SET title = COALESCE(?, title), description = COALESCE(?, description),
           requirements = COALESCE(?, requirements), context = COALESCE(?, context),
           weights = COALESCE(?, weights) WHERE id = ? AND workspace_id = ?`,
@@ -370,12 +368,12 @@ app.put("/api/workspaces/:wid/needs/:id", async (req, res) => {
       req.params.id, req.params.wid,
     ],
   });
-  const result = await db.execute({ sql: "SELECT * FROM needs WHERE id = ?", args: [req.params.id] });
+  const result = await getDb().execute({ sql: "SELECT * FROM needs WHERE id = ?", args: [req.params.id] });
   res.json(result.rows[0]);
 });
 
 app.delete("/api/workspaces/:wid/needs/:id", async (req, res) => {
-  await db.execute({ sql: "DELETE FROM needs WHERE id = ? AND workspace_id = ?", args: [req.params.id, req.params.wid] });
+  await getDb().execute({ sql: "DELETE FROM needs WHERE id = ? AND workspace_id = ?", args: [req.params.id, req.params.wid] });
   res.json({ ok: true });
 });
 
@@ -384,7 +382,7 @@ app.delete("/api/workspaces/:wid/needs/:id", async (req, res) => {
 // ═══════════════════════════════════════════════════════════════════════════
 
 app.get("/api/workspaces/:wid/documents", async (req, res) => {
-  const result = await db.execute({
+  const result = await getDb().execute({
     sql: "SELECT * FROM documents WHERE workspace_id = ? ORDER BY created_at DESC",
     args: [req.params.wid],
   });
@@ -410,7 +408,7 @@ app.post("/api/workspaces/:wid/documents", upload.single("file"), async (req, re
     console.error("Text extraction error:", err.message);
   }
 
-  await db.execute({
+  await getDb().execute({
     sql: `INSERT INTO documents (id, workspace_id, filename, original_name, type, content_text, sections, file_size)
           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
     args: [id, req.params.wid, req.file.filename, req.file.originalname, docType, contentText, JSON.stringify(sections), req.file.size],
@@ -419,12 +417,12 @@ app.post("/api/workspaces/:wid/documents", upload.single("file"), async (req, re
   // Clean up temp file
   fs.unlink(req.file.path, () => {});
 
-  const result = await db.execute({ sql: "SELECT * FROM documents WHERE id = ?", args: [id] });
+  const result = await getDb().execute({ sql: "SELECT * FROM documents WHERE id = ?", args: [id] });
   res.status(201).json(result.rows[0]);
 });
 
 app.get("/api/workspaces/:wid/documents/:id", async (req, res) => {
-  const result = await db.execute({
+  const result = await getDb().execute({
     sql: "SELECT * FROM documents WHERE id = ? AND workspace_id = ?",
     args: [req.params.id, req.params.wid],
   });
@@ -433,7 +431,7 @@ app.get("/api/workspaces/:wid/documents/:id", async (req, res) => {
 });
 
 app.delete("/api/workspaces/:wid/documents/:id", async (req, res) => {
-  await db.execute({ sql: "DELETE FROM documents WHERE id = ? AND workspace_id = ?", args: [req.params.id, req.params.wid] });
+  await getDb().execute({ sql: "DELETE FROM documents WHERE id = ? AND workspace_id = ?", args: [req.params.id, req.params.wid] });
   res.json({ ok: true });
 });
 
@@ -442,7 +440,7 @@ app.delete("/api/workspaces/:wid/documents/:id", async (req, res) => {
 // ═══════════════════════════════════════════════════════════════════════════
 
 app.get("/api/workspaces/:wid/needs/:nid/matches", async (req, res) => {
-  const result = await db.execute({
+  const result = await getDb().execute({
     sql: `SELECT m.*, r.name as resource_name, r.type as resource_type, r.description as resource_description,
           r.capabilities as resource_capabilities, r.experiences as resource_experiences,
           r.cost_value as resource_cost_value, r.cost_unit as resource_cost_unit
@@ -459,7 +457,7 @@ app.get("/api/workspaces/:wid/needs/:nid/matches", async (req, res) => {
 
 app.post("/api/workspaces/:wid/documents/:did/extract-needs", async (req, res) => {
   const { wid, did } = req.params;
-  const docResult = await db.execute({ sql: "SELECT * FROM documents WHERE id = ? AND workspace_id = ?", args: [did, wid] });
+  const docResult = await getDb().execute({ sql: "SELECT * FROM documents WHERE id = ? AND workspace_id = ?", args: [did, wid] });
   if (!docResult.rows.length) return res.status(404).json({ error: "Document not found" });
 
   const doc = docResult.rows[0];
@@ -495,12 +493,12 @@ Ne retourne QUE le JSON, sans markdown ni commentaire.`,
   const created = [];
   for (const need of extractedNeeds) {
     const id = uuid();
-    await db.execute({
+    await getDb().execute({
       sql: `INSERT INTO needs (id, workspace_id, title, description, requirements, context, source_document_id)
             VALUES (?, ?, ?, ?, ?, ?, ?)`,
       args: [id, wid, need.title || "Sans titre", need.description || "", JSON.stringify(need.requirements || []), need.context || "", did],
     });
-    const r = await db.execute({ sql: "SELECT * FROM needs WHERE id = ?", args: [id] });
+    const r = await getDb().execute({ sql: "SELECT * FROM needs WHERE id = ?", args: [id] });
     created.push(r.rows[0]);
   }
 
@@ -514,11 +512,11 @@ Ne retourne QUE le JSON, sans markdown ni commentaire.`,
 app.post("/api/workspaces/:wid/needs/:nid/match", async (req, res) => {
   const { wid, nid } = req.params;
 
-  const needResult = await db.execute({ sql: "SELECT * FROM needs WHERE id = ? AND workspace_id = ?", args: [nid, wid] });
+  const needResult = await getDb().execute({ sql: "SELECT * FROM needs WHERE id = ? AND workspace_id = ?", args: [nid, wid] });
   if (!needResult.rows.length) return res.status(404).json({ error: "Need not found" });
   const need = needResult.rows[0];
 
-  const resourcesResult = await db.execute({ sql: "SELECT * FROM resources WHERE workspace_id = ?", args: [wid] });
+  const resourcesResult = await getDb().execute({ sql: "SELECT * FROM resources WHERE workspace_id = ?", args: [wid] });
   if (!resourcesResult.rows.length) return res.status(400).json({ error: "No resources to match" });
 
   const resources = resourcesResult.rows;
@@ -570,7 +568,7 @@ Ne retourne QUE le JSON.`;
   }
 
   // Clear old matches for this need
-  await db.execute({ sql: "DELETE FROM matches WHERE need_id = ?", args: [nid] });
+  await getDb().execute({ sql: "DELETE FROM matches WHERE need_id = ?", args: [nid] });
 
   // Sort by overall score and save
   matchResults.sort((a, b) => (b.overall || 0) - (a.overall || 0));
@@ -582,7 +580,7 @@ Ne retourne QUE le JSON.`;
     if (!resource) continue;
 
     const id = uuid();
-    await db.execute({
+    await getDb().execute({
       sql: `INSERT INTO matches (id, need_id, resource_id, overall_score, dimension_scores, explanation, rank)
             VALUES (?, ?, ?, ?, ?, ?, ?)`,
       args: [id, nid, resource.id, m.overall || 0, JSON.stringify(m.scores || {}), m.explanation || "", rank + 1],
@@ -606,7 +604,7 @@ Ne retourne QUE le JSON.`;
 // Match all needs in a workspace at once
 app.post("/api/workspaces/:wid/match-all", async (req, res) => {
   const { wid } = req.params;
-  const needsResult = await db.execute({ sql: "SELECT * FROM needs WHERE workspace_id = ?", args: [wid] });
+  const needsResult = await getDb().execute({ sql: "SELECT * FROM needs WHERE workspace_id = ?", args: [wid] });
   if (!needsResult.rows.length) return res.status(400).json({ error: "No needs to match" });
 
   const results = [];
@@ -636,15 +634,15 @@ app.post("/api/workspaces/:wid/needs/:nid/generate", async (req, res) => {
   const { wid, nid } = req.params;
   const { tone, maxLength, additionalContext } = req.body;
 
-  const needResult = await db.execute({ sql: "SELECT * FROM needs WHERE id = ? AND workspace_id = ?", args: [nid, wid] });
+  const needResult = await getDb().execute({ sql: "SELECT * FROM needs WHERE id = ? AND workspace_id = ?", args: [nid, wid] });
   if (!needResult.rows.length) return res.status(404).json({ error: "Need not found" });
   const need = needResult.rows[0];
 
-  const wsResult = await db.execute({ sql: "SELECT * FROM workspaces WHERE id = ?", args: [wid] });
+  const wsResult = await getDb().execute({ sql: "SELECT * FROM workspaces WHERE id = ?", args: [wid] });
   const workspace = wsResult.rows[0];
 
   // Get matches for this need
-  const matchesResult = await db.execute({
+  const matchesResult = await getDb().execute({
     sql: `SELECT m.*, r.name as resource_name, r.type as resource_type, r.description as resource_description,
           r.capabilities as resource_capabilities, r.experiences as resource_experiences
           FROM matches m JOIN resources r ON m.resource_id = r.id
@@ -691,7 +689,7 @@ Rédige la section de réponse AO. Commence directement par le contenu (pas de t
 // ═══════════════════════════════════════════════════════════════════════════
 
 app.get("/api/workspaces/:wid/chat", async (req, res) => {
-  const result = await db.execute({
+  const result = await getDb().execute({
     sql: "SELECT * FROM chat_messages WHERE workspace_id = ? ORDER BY created_at ASC",
     args: [req.params.wid],
   });
@@ -705,7 +703,7 @@ app.post("/api/workspaces/:wid/chat", async (req, res) => {
 
   // Save user message
   const userMsgId = uuid();
-  await db.execute({
+  await getDb().execute({
     sql: "INSERT INTO chat_messages (id, workspace_id, role, content) VALUES (?, ?, 'user', ?)",
     args: [userMsgId, wid, message],
   });
@@ -723,7 +721,7 @@ app.post("/api/workspaces/:wid/chat", async (req, res) => {
   const needs = needsResult.rows;
 
   // Get recent chat history
-  const historyResult = await db.execute({
+  const historyResult = await getDb().execute({
     sql: "SELECT role, content FROM chat_messages WHERE workspace_id = ? ORDER BY created_at DESC LIMIT 20",
     args: [wid],
   });
@@ -747,7 +745,7 @@ ${docsResult.rows.length} documents uploadés.`;
     messages.push({ role: "user", content: message });
   }
 
-  const aiResponse = await anthropic.messages.create({
+  const aiResponse = await getAnthropic().messages.create({
     model: "claude-haiku-4-5-20251001",
     max_tokens: 1500,
     system: `Tu es Matchmaker (AG003), un assistant intelligent de matching pour réponses aux appels d'offres.
@@ -771,7 +769,7 @@ Réponds en français, de manière concise et actionnable.`,
 
   // Save assistant response
   const assistantMsgId = uuid();
-  await db.execute({
+  await getDb().execute({
     sql: "INSERT INTO chat_messages (id, workspace_id, role, content) VALUES (?, ?, 'assistant', ?)",
     args: [assistantMsgId, wid, assistantContent],
   });
@@ -780,7 +778,7 @@ Réponds en français, de manière concise et actionnable.`,
 });
 
 app.delete("/api/workspaces/:wid/chat", async (req, res) => {
-  await db.execute({ sql: "DELETE FROM chat_messages WHERE workspace_id = ?", args: [req.params.wid] });
+  await getDb().execute({ sql: "DELETE FROM chat_messages WHERE workspace_id = ?", args: [req.params.wid] });
   res.json({ ok: true });
 });
 
@@ -807,7 +805,7 @@ app.get("/api/workspaces/:wid/stats", async (req, res) => {
 // ── Health ───────────────────────────────────────────────────────────────────
 app.get("/api/health", async (_req, res) => {
   try {
-    await db.execute("SELECT 1");
+    await getDb().execute("SELECT 1");
     res.json({ status: "ok", agent: "AG003", name: "Matchmaker" });
   } catch (err) {
     res.status(500).json({ status: "error", message: err.message });
