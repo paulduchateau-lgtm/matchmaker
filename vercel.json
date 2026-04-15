@@ -5,7 +5,7 @@
   "functions": {
     "api/index.js": {
       "maxDuration": 60,
-      "includeFiles": "server/**"
+      "includeFiles": "server/**,server/node_modules/**"
     }
   },
   "rewrites": [
