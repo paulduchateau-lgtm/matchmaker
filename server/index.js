@@ -27,8 +27,13 @@ try { fs.mkdirSync(UPLOADS_DIR, { recursive: true }); } catch {};
 let db;
 function getDb() {
   if (!db) {
+    let url = process.env.TURSO_DATABASE_URL;
+    // On Vercel serverless, libsql:// (native protocol) doesn't work — use HTTPS instead
+    if (process.env.VERCEL && url?.startsWith("libsql://")) {
+      url = url.replace("libsql://", "https://");
+    }
     db = createClient({
-      url: process.env.TURSO_DATABASE_URL,
+      url,
       authToken: process.env.TURSO_AUTH_TOKEN,
     });
   }
