@@ -713,10 +713,10 @@ app.post("/api/workspaces/:wid/chat", async (req, res) => {
 
   // Gather workspace context
   const [wsResult, resourcesResult, needsResult, docsResult] = await Promise.all([
-    db.execute({ sql: "SELECT * FROM workspaces WHERE id = ?", args: [wid] }),
-    db.execute({ sql: "SELECT * FROM resources WHERE workspace_id = ?", args: [wid] }),
-    db.execute({ sql: "SELECT * FROM needs WHERE workspace_id = ?", args: [wid] }),
-    db.execute({ sql: "SELECT * FROM documents WHERE workspace_id = ?", args: [wid] }),
+    getDb().execute({ sql: "SELECT * FROM workspaces WHERE id = ?", args: [wid] }),
+    getDb().execute({ sql: "SELECT * FROM resources WHERE workspace_id = ?", args: [wid] }),
+    getDb().execute({ sql: "SELECT * FROM needs WHERE workspace_id = ?", args: [wid] }),
+    getDb().execute({ sql: "SELECT * FROM documents WHERE workspace_id = ?", args: [wid] }),
   ]);
 
   const workspace = wsResult.rows[0];
@@ -789,10 +789,10 @@ app.delete("/api/workspaces/:wid/chat", async (req, res) => {
 app.get("/api/workspaces/:wid/stats", async (req, res) => {
   const wid = req.params.wid;
   const [resources, needs, documents, matches] = await Promise.all([
-    db.execute({ sql: "SELECT COUNT(*) as count FROM resources WHERE workspace_id = ?", args: [wid] }),
-    db.execute({ sql: "SELECT COUNT(*) as count FROM needs WHERE workspace_id = ?", args: [wid] }),
-    db.execute({ sql: "SELECT COUNT(*) as count FROM documents WHERE workspace_id = ?", args: [wid] }),
-    db.execute({
+    getDb().execute({ sql: "SELECT COUNT(*) as count FROM resources WHERE workspace_id = ?", args: [wid] }),
+    getDb().execute({ sql: "SELECT COUNT(*) as count FROM needs WHERE workspace_id = ?", args: [wid] }),
+    getDb().execute({ sql: "SELECT COUNT(*) as count FROM documents WHERE workspace_id = ?", args: [wid] }),
+    getDb().execute({
       sql: `SELECT COUNT(*) as count FROM matches m JOIN needs n ON m.need_id = n.id WHERE n.workspace_id = ?`,
       args: [wid],
     }),
