@@ -41,85 +41,83 @@ let initialized = false;
 async function initDB() {
   if (initialized) return;
 
-  await getDb().executeMultiple(`
-    CREATE TABLE IF NOT EXISTS workspaces (
-      id TEXT PRIMARY KEY,
-      slug TEXT UNIQUE NOT NULL,
-      name TEXT NOT NULL,
-      description TEXT DEFAULT '',
-      industry TEXT DEFAULT '',
-      client_name TEXT DEFAULT '',
-      created_at TEXT DEFAULT (datetime('now')),
-      updated_at TEXT DEFAULT (datetime('now'))
-    );
+  const d = getDb();
 
-    CREATE TABLE IF NOT EXISTS resources (
-      id TEXT PRIMARY KEY,
-      workspace_id TEXT NOT NULL,
-      type TEXT NOT NULL DEFAULT 'service',
-      name TEXT NOT NULL,
-      description TEXT DEFAULT '',
-      capabilities TEXT DEFAULT '[]',
-      experiences TEXT DEFAULT '[]',
-      cost_value REAL,
-      cost_unit TEXT DEFAULT '',
-      variables TEXT DEFAULT '{}',
-      metadata TEXT DEFAULT '{}',
-      created_at TEXT DEFAULT (datetime('now')),
-      FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
-    );
+  await d.execute(`CREATE TABLE IF NOT EXISTS workspaces (
+    id TEXT PRIMARY KEY,
+    slug TEXT UNIQUE NOT NULL,
+    name TEXT NOT NULL,
+    description TEXT DEFAULT '',
+    industry TEXT DEFAULT '',
+    client_name TEXT DEFAULT '',
+    created_at TEXT DEFAULT (datetime('now')),
+    updated_at TEXT DEFAULT (datetime('now'))
+  )`);
 
-    CREATE TABLE IF NOT EXISTS needs (
-      id TEXT PRIMARY KEY,
-      workspace_id TEXT NOT NULL,
-      title TEXT NOT NULL,
-      description TEXT DEFAULT '',
-      requirements TEXT DEFAULT '[]',
-      context TEXT DEFAULT '',
-      weights TEXT DEFAULT '{}',
-      source_document_id TEXT,
-      created_at TEXT DEFAULT (datetime('now')),
-      FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
-    );
+  await d.execute(`CREATE TABLE IF NOT EXISTS resources (
+    id TEXT PRIMARY KEY,
+    workspace_id TEXT NOT NULL,
+    type TEXT NOT NULL DEFAULT 'service',
+    name TEXT NOT NULL,
+    description TEXT DEFAULT '',
+    capabilities TEXT DEFAULT '[]',
+    experiences TEXT DEFAULT '[]',
+    cost_value REAL,
+    cost_unit TEXT DEFAULT '',
+    variables TEXT DEFAULT '{}',
+    metadata TEXT DEFAULT '{}',
+    created_at TEXT DEFAULT (datetime('now')),
+    FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
+  )`);
 
-    CREATE TABLE IF NOT EXISTS matches (
-      id TEXT PRIMARY KEY,
-      need_id TEXT NOT NULL,
-      resource_id TEXT NOT NULL,
-      overall_score REAL DEFAULT 0,
-      dimension_scores TEXT DEFAULT '{}',
-      explanation TEXT DEFAULT '',
-      rank INTEGER DEFAULT 0,
-      created_at TEXT DEFAULT (datetime('now')),
-      FOREIGN KEY (need_id) REFERENCES needs(id) ON DELETE CASCADE,
-      FOREIGN KEY (resource_id) REFERENCES resources(id) ON DELETE CASCADE
-    );
+  await d.execute(`CREATE TABLE IF NOT EXISTS needs (
+    id TEXT PRIMARY KEY,
+    workspace_id TEXT NOT NULL,
+    title TEXT NOT NULL,
+    description TEXT DEFAULT '',
+    requirements TEXT DEFAULT '[]',
+    context TEXT DEFAULT '',
+    weights TEXT DEFAULT '{}',
+    source_document_id TEXT,
+    created_at TEXT DEFAULT (datetime('now')),
+    FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
+  )`);
 
-    CREATE TABLE IF NOT EXISTS documents (
-      id TEXT PRIMARY KEY,
-      workspace_id TEXT NOT NULL,
-      filename TEXT NOT NULL,
-      original_name TEXT NOT NULL,
-      type TEXT NOT NULL DEFAULT 'other',
-      content_text TEXT DEFAULT '',
-      sections TEXT DEFAULT '[]',
-      file_size INTEGER DEFAULT 0,
-      created_at TEXT DEFAULT (datetime('now')),
-      FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
-    );
-  `);
+  await d.execute(`CREATE TABLE IF NOT EXISTS matches (
+    id TEXT PRIMARY KEY,
+    need_id TEXT NOT NULL,
+    resource_id TEXT NOT NULL,
+    overall_score REAL DEFAULT 0,
+    dimension_scores TEXT DEFAULT '{}',
+    explanation TEXT DEFAULT '',
+    rank INTEGER DEFAULT 0,
+    created_at TEXT DEFAULT (datetime('now')),
+    FOREIGN KEY (need_id) REFERENCES needs(id) ON DELETE CASCADE,
+    FOREIGN KEY (resource_id) REFERENCES resources(id) ON DELETE CASCADE
+  )`);
 
-  await getDb().executeMultiple(`
-    CREATE TABLE IF NOT EXISTS chat_messages (
-      id TEXT PRIMARY KEY,
-      workspace_id TEXT NOT NULL,
-      role TEXT NOT NULL,
-      content TEXT NOT NULL,
-      metadata TEXT DEFAULT '{}',
-      created_at TEXT DEFAULT (datetime('now')),
-      FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
-    );
-  `);
+  await d.execute(`CREATE TABLE IF NOT EXISTS documents (
+    id TEXT PRIMARY KEY,
+    workspace_id TEXT NOT NULL,
+    filename TEXT NOT NULL,
+    original_name TEXT NOT NULL,
+    type TEXT NOT NULL DEFAULT 'other',
+    content_text TEXT DEFAULT '',
+    sections TEXT DEFAULT '[]',
+    file_size INTEGER DEFAULT 0,
+    created_at TEXT DEFAULT (datetime('now')),
+    FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
+  )`);
+
+  await d.execute(`CREATE TABLE IF NOT EXISTS chat_messages (
+    id TEXT PRIMARY KEY,
+    workspace_id TEXT NOT NULL,
+    role TEXT NOT NULL,
+    content TEXT NOT NULL,
+    metadata TEXT DEFAULT '{}',
+    created_at TEXT DEFAULT (datetime('now')),
+    FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
+  )`);
 
   initialized = true;
   console.log("✓ Database schema initialized");
