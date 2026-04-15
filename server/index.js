@@ -5,12 +5,12 @@ import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
 import dotenv from "dotenv";
-import { createClient } from "@libsql/client/web";
+import { createClient } from "@libsql/client";
 import { v4 as uuid } from "uuid";
 import mammoth from "mammoth";
 import Anthropic from "@anthropic-ai/sdk";
 
-dotenv.config();
+try { dotenv.config(); } catch {};
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = process.env.PORT || 3005;
@@ -21,7 +21,7 @@ const UPLOADS_DIR =
     ? "/tmp/matchmaker-uploads"
     : path.join(__dirname, "uploads"));
 
-fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+try { fs.mkdirSync(UPLOADS_DIR, { recursive: true }); } catch {};
 
 // ── Database ────────────────────────────────────────────────────────────────
 if (!process.env.TURSO_DATABASE_URL) {
