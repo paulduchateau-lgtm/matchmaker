@@ -1,0 +1,378 @@
+/* Matchmaker — T2 Product styles */
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body, #root {
+  height: 100%;
+}
+
+body {
+  font-family: var(--font-sans);
+  font-size: var(--text-body);
+  font-weight: var(--weight-regular);
+  line-height: var(--leading-relaxed);
+  color: var(--color-paper);
+  background: var(--color-dark);
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: var(--color-green);
+  text-decoration: none;
+}
+a:hover {
+  text-decoration: underline;
+}
+
+button {
+  font-family: var(--font-sans);
+  cursor: pointer;
+}
+
+input, textarea, select {
+  font-family: var(--font-sans);
+  font-size: var(--text-body);
+}
+
+/* ── Layout ─────────────────────────────────────────────────────────────── */
+.app-shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--sp-4) var(--sp-6);
+  border-bottom: 1px solid #2A2926;
+  background: var(--color-ink);
+}
+
+.app-header__brand {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+}
+
+.app-header__agent-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-green);
+}
+
+.app-header__name {
+  font-family: var(--font-sans);
+  font-size: var(--text-title);
+  font-weight: var(--weight-medium);
+  color: var(--color-paper);
+}
+
+.app-header__code {
+  font-family: var(--font-mono);
+  font-size: var(--text-label);
+  font-weight: var(--weight-medium);
+  letter-spacing: var(--tracking-mono-md);
+  text-transform: uppercase;
+  color: var(--color-sage);
+}
+
+.app-main {
+  flex: 1;
+  padding: var(--sp-6);
+  max-width: 1200px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+/* ── Cards ──────────────────────────────────────────────────────────────── */
+.card {
+  background: #2A2926;
+  border-radius: var(--radius-t2);
+  border: 1px solid #363530;
+  padding: var(--sp-5);
+}
+
+.card--clickable {
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+.card--clickable:hover {
+  border-color: var(--color-green);
+}
+
+/* ── Buttons ────────────────────────────────────────────────────────────── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-4);
+  border-radius: var(--radius-t2);
+  font-size: var(--text-body);
+  font-weight: var(--weight-medium);
+  border: 1px solid transparent;
+  transition: all 0.15s;
+}
+
+.btn--primary {
+  background: var(--color-green);
+  color: var(--color-ink);
+}
+.btn--primary:hover {
+  opacity: 0.9;
+}
+
+.btn--secondary {
+  background: transparent;
+  color: var(--color-paper);
+  border-color: #363530;
+}
+.btn--secondary:hover {
+  border-color: var(--color-sage);
+}
+
+.btn--danger {
+  background: transparent;
+  color: var(--color-alert);
+  border-color: transparent;
+}
+.btn--danger:hover {
+  background: rgba(184, 90, 64, 0.1);
+}
+
+.btn--sm {
+  padding: var(--sp-1) var(--sp-3);
+  font-size: var(--text-body-sm);
+}
+
+/* ── Forms ──────────────────────────────────────────────────────────────── */
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  margin-bottom: var(--sp-4);
+}
+
+.form-label {
+  font-family: var(--font-mono);
+  font-size: var(--text-label);
+  font-weight: var(--weight-medium);
+  letter-spacing: var(--tracking-mono-md);
+  text-transform: uppercase;
+  color: var(--color-sage);
+}
+
+.form-input,
+.form-textarea,
+.form-select {
+  background: #1E1D1B;
+  border: 1px solid #363530;
+  border-radius: var(--radius-t2);
+  padding: var(--sp-2) var(--sp-3);
+  color: var(--color-paper);
+  font-size: var(--text-body);
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.form-input:focus,
+.form-textarea:focus,
+.form-select:focus {
+  border-color: var(--color-green);
+}
+
+.form-textarea {
+  min-height: 80px;
+  resize: vertical;
+}
+
+/* ── Tags ───────────────────────────────────────────────────────────────── */
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+  padding: 2px var(--sp-2);
+  border-radius: var(--radius-t2);
+  font-size: var(--text-caption);
+  font-weight: var(--weight-medium);
+  background: #363530;
+  color: var(--color-chrome);
+}
+
+.tag--green {
+  background: rgba(165, 217, 0, 0.12);
+  color: var(--color-green);
+}
+
+.tag--amber {
+  background: rgba(196, 135, 46, 0.12);
+  color: var(--color-amber);
+}
+
+.tag--copper {
+  background: rgba(160, 105, 74, 0.12);
+  color: var(--color-copper);
+}
+
+/* ── Type badges ────────────────────────────────────────────────────────── */
+.type-badge {
+  font-family: var(--font-mono);
+  font-size: var(--text-label-sm, 9px);
+  font-weight: var(--weight-medium);
+  letter-spacing: var(--tracking-mono);
+  text-transform: uppercase;
+  padding: 2px 6px;
+  border-radius: 3px;
+}
+
+/* ── Empty state ────────────────────────────────────────────────────────── */
+.empty-state {
+  text-align: center;
+  padding: var(--sp-12) var(--sp-6);
+  color: var(--color-sage);
+}
+
+.empty-state__icon {
+  margin-bottom: var(--sp-4);
+  opacity: 0.4;
+}
+
+.empty-state__title {
+  font-size: var(--text-title);
+  font-weight: var(--weight-medium);
+  color: var(--color-chrome);
+  margin-bottom: var(--sp-2);
+}
+
+/* ── Grid ───────────────────────────────────────────────────────────────── */
+.grid-2 {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: var(--sp-4);
+}
+
+.grid-3 {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: var(--sp-4);
+}
+
+/* ── Stats row ──────────────────────────────────────────────────────────── */
+.stats-row {
+  display: flex;
+  gap: var(--sp-4);
+  margin-bottom: var(--sp-6);
+}
+
+.stat-card {
+  background: #2A2926;
+  border-radius: var(--radius-t2);
+  border: 1px solid #363530;
+  padding: var(--sp-4);
+  flex: 1;
+  text-align: center;
+}
+
+.stat-card__value {
+  font-size: var(--text-headline);
+  font-weight: var(--weight-medium);
+  color: var(--color-paper);
+}
+
+.stat-card__label {
+  font-family: var(--font-mono);
+  font-size: var(--text-label);
+  letter-spacing: var(--tracking-mono-md);
+  text-transform: uppercase;
+  color: var(--color-sage);
+  margin-top: var(--sp-1);
+}
+
+/* ── Section headers ────────────────────────────────────────────────────── */
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--sp-4);
+}
+
+.section-title {
+  font-size: var(--text-title);
+  font-weight: var(--weight-medium);
+  color: var(--color-paper);
+}
+
+/* ── Modal / Drawer ─────────────────────────────────────────────────────── */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+.modal {
+  background: var(--color-dark);
+  border: 1px solid #363530;
+  border-radius: var(--radius-t2);
+  padding: var(--sp-6);
+  width: 90%;
+  max-width: 560px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.modal__title {
+  font-size: var(--text-headline);
+  font-weight: var(--weight-medium);
+  margin-bottom: var(--sp-5);
+}
+
+.modal__actions {
+  display: flex;
+  gap: var(--sp-3);
+  justify-content: flex-end;
+  margin-top: var(--sp-5);
+}
+
+/* ── Document sections ──────────────────────────────────────────────────── */
+.doc-section {
+  padding: var(--sp-3) var(--sp-4);
+  border-left: 2px solid #363530;
+  margin-bottom: var(--sp-2);
+}
+
+.doc-section--h1 { border-left-color: var(--color-green); }
+.doc-section--h2 { border-left-color: var(--color-amber); padding-left: var(--sp-6); }
+.doc-section--h3 { border-left-color: var(--color-copper); padding-left: var(--sp-8); }
+
+.doc-section__title {
+  font-weight: var(--weight-medium);
+  color: var(--color-paper);
+  margin-bottom: var(--sp-1);
+}
+
+.doc-section__preview {
+  font-size: var(--text-body-sm);
+  color: var(--color-sage);
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+/* ── Spinner ────────────────────────────────────────────────────────────── */
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+.spin {
+  animation: spin 1s linear infinite;
+}

@@ -1,0 +1,15 @@
+{
+  "buildCommand": "cd app && npm install && npm run build",
+  "outputDirectory": "app/dist",
+  "installCommand": "cd server && npm install && cd ../app && npm install",
+  "functions": {
+    "api/index.js": {
+      "maxDuration": 60,
+      "includeFiles": "server/**"
+    }
+  },
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": "/api" },
+    { "source": "/((?!api)(?!.*\\.[a-zA-Z0-9]+$).*)", "destination": "/index.html" }
+  ]
+}
